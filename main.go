@@ -84,8 +84,8 @@ type Generator struct {
 
 //A RPCMethod is an in-memory representation of method on a rpc service
 type RPCMethod struct {
-	input  types.Type
-	output types.Type
+	input  types.Type //can (pointer of) builtin or named type
+	output types.Type //this is the underlying elem of the pointer param
 	recv   *types.Named
 	sig    *types.Signature
 }
@@ -102,7 +102,7 @@ func NewGenerator() *Generator {
 	}
 }
 
-//Extract rpc methods by analysing package definitions
+//Extract rpc services and methods by analysing package definitions
 func (g *Generator) Extract() error {
 	rpcmethods := map[string]*RPCMethod{}
 
@@ -182,7 +182,7 @@ func (g *Generator) Extract() error {
 
 			rpcmethods[obj.Name()] = &RPCMethod{
 				input:  t.Params().At(0).Type(),
-				output: t.Params().At(1).Type(),
+				output: t.Params().At(1).Type().(*types.Pointer).Elem(), //this is checked above
 				recv:   recv,
 				sig:    t,
 			}
