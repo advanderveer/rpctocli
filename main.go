@@ -160,7 +160,12 @@ func (g *Generator) Generate() error {
 		for mname := range s.methods {
 			fmt.Fprintf(g.buff, "var %sSubCommand = cli.Command{", mname)
 			fmt.Fprintf(g.buff, `Name: "%s",`, mname)
-			fmt.Fprintf(g.buff, `Action: func(ctx *cli.Context) {},`)
+			fmt.Fprintf(g.buff, `Flags: []cli.Flag{`)
+			//@todo generate flags
+			fmt.Fprintf(g.buff, `}, `)
+			fmt.Fprintf(g.buff, `Action: func(ctx *cli.Context) {`)
+			//@todo generate action
+			fmt.Fprintf(g.buff, `},`)
 			fmt.Fprintf(g.buff, "}\n\n")
 		}
 	}
@@ -171,18 +176,6 @@ func (g *Generator) Generate() error {
 		fmt.Fprintf(g.buff, "%sCommand, ", sname)
 	}
 	fmt.Fprintf(g.buff, "}")
-
-	// var Login = cli.Command{
-	// 	Name:  "login",
-	// 	Usage: "Login into the Nerdalize compute platform",
-	// 	Flags: []cli.Flag{
-	// 		cli.StringFlag{Name: "email,e", Usage: "Your account email address"},
-	// 		cli.StringFlag{Name: "password,p", Usage: "Your account password"},
-	// 	},
-	// 	Action: func(ctx *cli.Context) {
-	//
-	// 	},
-	// }
 
 	return nil
 }
