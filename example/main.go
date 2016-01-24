@@ -61,6 +61,21 @@ func (t *Arith) Multiply(args *Args, reply *int) error {
 	return nil
 }
 
+//Squared multiplies the arg by itself
+func (t *Arith) Squared(nr int, reply *int) error {
+	*reply = nr * nr
+	return nil
+}
+
+type Countable int
+
+type TwoAble Countable
+
+func (t *Arith) TimesTwo(nr TwoAble, reply *int) error {
+	*reply = int(nr) * 2
+	return nil
+}
+
 //Divide is rpc
 func (t *Arith) Divide(args *Args, quo *Quotient) error {
 	if args.B == 0 {
@@ -75,7 +90,7 @@ func main() {
 	arith := new(Arith)
 	rpc.Register(arith)
 	rpc.HandleHTTP()
-	l, e := net.Listen("tcp", ":1234")
+	l, e := net.Listen("tcp", "127.0.0.1:1234")
 	if e != nil {
 		log.Fatal("listen error:", e)
 	}
@@ -86,6 +101,5 @@ func main() {
 	app.Name = "boom"
 	app.Usage = "make an explosive entrance"
 	app.Commands = GeneratedCommands
-
 	app.Run(os.Args)
 }

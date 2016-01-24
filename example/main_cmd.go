@@ -2,15 +2,112 @@
 package main
 
 import(
+	"log"
+	"net/rpc"
 	"github.com/codegangsta/cli"
 )
 
-var ArithCommand = cli.Command{Name: "Arith",Subcommands: []cli.Command{MultiplySubCommand, TestSubCommand, DivideSubCommand, },}
+var ArithCommand = cli.Command{Name: "Arith",Subcommands: []cli.Command{TimesTwoSubCommand, MultiplySubCommand, SquaredSubCommand, DivideSubCommand, TestSubCommand, },}
 
-var DivideSubCommand = cli.Command{Name: "Divide",Flags: []cli.Flag{}, Action: func(ctx *cli.Context) {},}
+var TimesTwoSubCommand = cli.Command{Name: "TimesTwo",Flags: []cli.Flag{},Action: func(ctx *cli.Context) {
 
-var MultiplySubCommand = cli.Command{Name: "Multiply",Flags: []cli.Flag{}, Action: func(ctx *cli.Context) {},}
+        client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
+      	if err != nil {
+      		log.Fatal("dialing:", err)
+      	}
 
-var TestSubCommand = cli.Command{Name: "Test",Flags: []cli.Flag{}, Action: func(ctx *cli.Context) {},}
+      	var args TwoAble
+
+      	var reply int
+      	err = client.Call("Arith.TimesTwo", args, &reply)
+      	if err != nil {
+      		log.Fatal("Arith error:", err)
+      	}
+
+        log.Println(reply)
+
+      },}
+
+var MultiplySubCommand = cli.Command{Name: "Multiply",Flags: []cli.Flag{cli.IntFlag{Name: "A"},cli.IntFlag{Name: "B"},},Action: func(ctx *cli.Context) {
+
+        client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
+      	if err != nil {
+      		log.Fatal("dialing:", err)
+      	}
+
+      	args := new(Args)
+args.A = ctx.Int("A")
+args.B = ctx.Int("B")
+
+      	var reply int
+      	err = client.Call("Arith.Multiply", args, &reply)
+      	if err != nil {
+      		log.Fatal("Arith error:", err)
+      	}
+
+        log.Println(reply)
+
+      },}
+
+var SquaredSubCommand = cli.Command{Name: "Squared",Flags: []cli.Flag{},Action: func(ctx *cli.Context) {
+
+        client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
+      	if err != nil {
+      		log.Fatal("dialing:", err)
+      	}
+
+      	var args int
+
+      	var reply int
+      	err = client.Call("Arith.Squared", args, &reply)
+      	if err != nil {
+      		log.Fatal("Arith error:", err)
+      	}
+
+        log.Println(reply)
+
+      },}
+
+var DivideSubCommand = cli.Command{Name: "Divide",Flags: []cli.Flag{cli.IntFlag{Name: "A"},cli.IntFlag{Name: "B"},},Action: func(ctx *cli.Context) {
+
+        client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
+      	if err != nil {
+      		log.Fatal("dialing:", err)
+      	}
+
+      	args := new(Args)
+args.A = ctx.Int("A")
+args.B = ctx.Int("B")
+
+      	var reply Quotient
+      	err = client.Call("Arith.Divide", args, &reply)
+      	if err != nil {
+      		log.Fatal("Arith error:", err)
+      	}
+
+        log.Println(reply)
+
+      },}
+
+var TestSubCommand = cli.Command{Name: "Test",Flags: []cli.Flag{cli.IntFlag{Name: "A"},cli.IntFlag{Name: "B"},},Action: func(ctx *cli.Context) {
+
+        client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
+      	if err != nil {
+      		log.Fatal("dialing:", err)
+      	}
+
+      	args := new(Args)
+args.A = ctx.Int("A")
+args.B = ctx.Int("B")
+
+      	var reply int
+      	err = client.Call("Arith.Test", args, &reply)
+      	if err != nil {
+      		log.Fatal("Arith error:", err)
+      	}
+
+        log.Println(reply)
+
+      },}
 
 var GeneratedCommands = []cli.Command{ArithCommand, }

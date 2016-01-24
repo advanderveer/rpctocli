@@ -134,6 +134,8 @@ func (g *Generator) Format() ([]byte, error) {
 func (g *Generator) Generate() error {
 
 	imports := []string{
+		"log",
+		"net/rpc",
 		"github.com/codegangsta/cli",
 	}
 
@@ -157,14 +159,46 @@ func (g *Generator) Generate() error {
 		fmt.Fprintf(g.buff, `},`)
 		fmt.Fprintf(g.buff, "}\n\n")
 
-		for mname := range s.methods {
+		for mname, m := range s.methods {
+
+			argInit, flags, err := g.generateFlagsAndArgs(m)
+			if err != nil {
+				return err
+			}
+
 			fmt.Fprintf(g.buff, "var %sSubCommand = cli.Command{", mname)
 			fmt.Fprintf(g.buff, `Name: "%s",`, mname)
-			fmt.Fprintf(g.buff, `Flags: []cli.Flag{`)
-			//@todo generate flags
-			fmt.Fprintf(g.buff, `}, `)
+			fmt.Fprintf(g.buff, `Flags: []cli.Flag{%s},`, flags)
 			fmt.Fprintf(g.buff, `Action: func(ctx *cli.Context) {`)
-			//@todo generate action
+
+			//@todo allow custom remote addr
+			//@todo generate command factory methods instead
+			//@todo provide custom logger possibility
+			//@todo custom post action (what to do with reply pointer)
+
+			replyTypeName := m.output.String()
+			if named, ok := m.output.(*types.Named); ok {
+				replyTypeName = named.Obj().Name()
+			}
+
+			fmt.Fprintf(g.buff, `
+
+        client, err := rpc.DialHTTP("tcp", "127.0.0.1:1234")
+      	if err != nil {
+      		log.Fatal("dialing:", err)
+      	}
+
+      	%s
+      	var reply %s
+      	err = client.Call("%s.%s", args, &reply)
+      	if err != nil {
+      		log.Fatal("%s error:", err)
+      	}
+
+        log.Println(reply)
+
+      `, argInit, replyTypeName, sname, mname, sname)
+
 			fmt.Fprintf(g.buff, `},`)
 			fmt.Fprintf(g.buff, "}\n\n")
 		}
@@ -178,6 +212,72 @@ func (g *Generator) Generate() error {
 	fmt.Fprintf(g.buff, "}")
 
 	return nil
+}
+
+func (g *Generator) generateFlagsAndArgs(method *RPCMethod) (string, string, error) {
+	arginit := ""
+	flagInit := ""
+
+	argtype := method.input
+	expectPointer := false
+	if argpt, ok := argtype.(*types.Pointer); ok {
+		expectPointer = true
+		argtype = argpt.Elem()
+	}
+
+	//arg field to cli option type
+	options := map[string]string{}
+
+	var typeName string
+	if argnamed, ok := argtype.(*types.Named); ok {
+		typeName = argnamed.Obj().Name()
+
+		//if the underlying type is a struct, create options from exported fields
+		if argstruct, ok := argnamed.Underlying().(*types.Struct); ok {
+
+			for i := 0; i < argstruct.NumFields(); i++ {
+				if !argstruct.Field(i).Exported() {
+					continue
+				}
+
+				//we only do basic field types for now
+				f := argstruct.Field(i)
+				if basicfield, ok := f.Type().(*types.Basic); ok {
+					options[f.Name()] = strings.Title(basicfield.String())
+				} else {
+					// @todo show warning?
+					// log.Printf("warning: RPC arg struct type '%s' has an exported field '%s' that is not a basic type (int, string etc), skipping...", typeName, f.Name())
+				}
+			}
+
+		} else if argbasic, ok := argnamed.Underlying().(*types.Basic); ok {
+			_ = argbasic
+			//how can know how to typecast from strings (which args always are)
+			//ctx.Args().Get(0)
+
+			// log.Printf("ABC: %s", argbasic.String())
+			//named type is not a struct, perhaps basic type?
+			//in any case, @todo use as arg
+		}
+
+	} else if argbasic, ok := argtype.(*types.Basic); ok {
+		typeName = argbasic.Name()
+	} else {
+		log.Fatalf("Unexpected input type: %T", argtype)
+	}
+
+	if expectPointer {
+		arginit = fmt.Sprintf("args := new(%s)\n", typeName)
+	} else {
+		arginit = fmt.Sprintf("var args %s\n", typeName)
+	}
+
+	for fname, flagtype := range options {
+		arginit += fmt.Sprintf(`args.%s = ctx.%s("%s")`+"\n", fname, flagtype, fname)
+		flagInit += fmt.Sprintf(`cli.%sFlag{Name: "%s"},`, flagtype, fname)
+	}
+
+	return arginit, flagInit, nil
 }
 
 //Extract rpc services and methods by analysing type definitions

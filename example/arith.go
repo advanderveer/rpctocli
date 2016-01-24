@@ -5,8 +5,10 @@ type Arith int
 
 //Args is en axample cli input
 type Args struct {
-	A int `cli:"a"`
-	B int `cli:"b"`
+	A        int `cli:"a"`
+	B        int `cli:"b"`
+	d        int
+	NonBasic *Quotient
 }
 
 //Quotient is an example output
