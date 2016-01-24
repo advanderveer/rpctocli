@@ -84,8 +84,10 @@ type Generator struct {
 
 //A RPCMethod is an in-memory representation of method on a rpc service
 type RPCMethod struct {
-	recv *types.Named
-	sig  *types.Signature
+	input  types.Type
+	output types.Type
+	recv   *types.Named
+	sig    *types.Signature
 }
 
 //A RPCService is an in-memory representation of a parsed rpc service
@@ -167,8 +169,9 @@ func (g *Generator) Extract() error {
 					if !paramnamedt.Obj().Exported() {
 						break DEFSWITCH
 					}
+
 				} else if strings.Contains(paramt.String(), ".") {
-					break
+					break DEFSWITCH
 				}
 			}
 
@@ -178,32 +181,11 @@ func (g *Generator) Extract() error {
 			}
 
 			rpcmethods[obj.Name()] = &RPCMethod{
-				recv: recv,
-				sig:  t,
+				input:  t.Params().At(0).Type(),
+				output: t.Params().At(1).Type(),
+				recv:   recv,
+				sig:    t,
 			}
-
-			// log.Printf("%s on %s (pos: %d) ", obj.Name(), recv.Obj().Name(), recv.Obj().Pos())
-			//
-			// for _, f := range g.pkg.files {
-			// 	nodes, _ := astutil.PathEnclosingInterval(f.file, recv.Obj().Pos(), recv.Obj().Pos())
-			// 	if len(nodes) == 0 {
-			// 		continue
-			// 	}
-			//
-			// 	for _, n := range nodes {
-			// 		switch n := n.(type) {
-			// 		case *ast.GenDecl:
-			// 			log.Println("\n", n.Doc.Text())
-			// 		case *ast.FuncDecl:
-			// 			log.Println("\n", n.Doc.Text())
-			// 		}
-			// 	}
-			// }
-
-			//recv pos:
-			// n, _ := astutil.PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Node, exact bool)
-
-			//results:
 		}
 	}
 
@@ -220,7 +202,7 @@ func (g *Generator) Extract() error {
 		rpcs.methods[n] = rpcm
 	}
 
-	log.Printf("%+v", g.services["Arith"].methods["Multiply"].sig.String())
+	log.Printf("%+v", g.services["Arith"].methods)
 
 	return nil
 }
