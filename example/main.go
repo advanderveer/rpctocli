@@ -20,6 +20,18 @@ type Quotient struct {
 
 type Arith int
 
+type arith int
+
+//Test8 should is NOT rpc: method is not exported
+func (t *Arith) test8(args *Args, reply *int) error {
+	return nil
+}
+
+//Test7 should is NOT rpc: recv is not exported
+func (t arith) Test7(args *Args, reply *int) error {
+	return nil
+}
+
 //Test6 should is NOT rpc: return must be error
 func (t Arith) Test6(args *Args, reply *int) int {
 	return 0
