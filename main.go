@@ -78,16 +78,31 @@ type File struct {
 
 //The Generator itself
 type Generator struct {
-	pkg *Package
+	pkg      *Package
+	services map[string]*RPCService
+}
+
+//A RPCMethod is an in-memory representation of method on a rpc service
+type RPCMethod struct {
+	recv *types.Named
+	sig  *types.Signature
+}
+
+//A RPCService is an in-memory representation of a parsed rpc service
+type RPCService struct {
+	methods map[string]*RPCMethod
 }
 
 //NewGenerator initializes a generator
 func NewGenerator() *Generator {
-	return &Generator{}
+	return &Generator{
+		services: map[string]*RPCService{},
+	}
 }
 
 //Extract rpc methods by analysing package definitions
 func (g *Generator) Extract() error {
+	rpcmethods := map[string]*RPCMethod{}
 
 	for _, obj := range g.pkg.defs {
 		if obj == nil {
@@ -113,7 +128,15 @@ func (g *Generator) Extract() error {
 			}
 
 			//receiver must be named and exported
-			if recv, ok := t.Recv().Type().(*types.Named); ok {
+			var recvt types.Type
+			if recvpt, ok := t.Recv().Type().(*types.Pointer); ok {
+				recvt = recvpt.Elem()
+			} else {
+				recvt = t.Recv().Type()
+			}
+
+			recv, ok := recvt.(*types.Named)
+			if ok {
 				if !recv.Obj().Exported() {
 					break
 				}
@@ -154,10 +177,50 @@ func (g *Generator) Extract() error {
 				break
 			}
 
+			rpcmethods[obj.Name()] = &RPCMethod{
+				recv: recv,
+				sig:  t,
+			}
+
+			// log.Printf("%s on %s (pos: %d) ", obj.Name(), recv.Obj().Name(), recv.Obj().Pos())
+			//
+			// for _, f := range g.pkg.files {
+			// 	nodes, _ := astutil.PathEnclosingInterval(f.file, recv.Obj().Pos(), recv.Obj().Pos())
+			// 	if len(nodes) == 0 {
+			// 		continue
+			// 	}
+			//
+			// 	for _, n := range nodes {
+			// 		switch n := n.(type) {
+			// 		case *ast.GenDecl:
+			// 			log.Println("\n", n.Doc.Text())
+			// 		case *ast.FuncDecl:
+			// 			log.Println("\n", n.Doc.Text())
+			// 		}
+			// 	}
+			// }
+
+			//recv pos:
+			// n, _ := astutil.PathEnclosingInterval(root *ast.File, start, end token.Pos) (path []ast.Node, exact bool)
+
 			//results:
-			log.Printf("%s: ", obj.Name())
 		}
 	}
+
+	for n, rpcm := range rpcmethods {
+		rpcs, ok := g.services[rpcm.recv.Obj().Name()]
+		if !ok {
+			rpcs = &RPCService{
+				methods: map[string]*RPCMethod{},
+			}
+
+			g.services[rpcm.recv.Obj().Name()] = rpcs
+		}
+
+		rpcs.methods[n] = rpcm
+	}
+
+	log.Printf("%+v", g.services["Arith"].methods["Multiply"].sig.String())
 
 	return nil
 }
@@ -178,7 +241,7 @@ func (g *Generator) Parse(dir string) error {
 			continue
 		}
 
-		astFile, err := parser.ParseFile(fset, fi.Name(), nil, 0)
+		astFile, err := parser.ParseFile(fset, fi.Name(), nil, parser.ParseComments)
 		if err != nil {
 			return fmt.Errorf("Failed to parse file '%s': %v", fi.Name(), err)
 		}

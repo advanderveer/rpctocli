@@ -10,16 +10,6 @@ import (
 
 type unexp struct{}
 
-type Args struct {
-	A, B int
-}
-
-type Quotient struct {
-	Quo, Rem int
-}
-
-type Arith int
-
 type arith int
 
 //Test8 should is NOT rpc: method is not exported
@@ -27,7 +17,7 @@ func (t *Arith) test8(args *Args, reply *int) error {
 	return nil
 }
 
-//Test7 should is NOT rpc: recv is not exported
+//Test7 should is NOT rpc: arith is not exported
 func (t arith) Test7(args *Args, reply *int) error {
 	return nil
 }
