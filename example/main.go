@@ -6,6 +6,9 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
+
+	"github.com/codegangsta/cli"
 )
 
 type unexp struct{}
@@ -77,4 +80,12 @@ func main() {
 		log.Fatal("listen error:", e)
 	}
 	go http.Serve(l, nil)
+
+	//use the generated commands
+	app := cli.NewApp()
+	app.Name = "boom"
+	app.Usage = "make an explosive entrance"
+	app.Commands = GeneratedCommands
+
+	app.Run(os.Args)
 }
