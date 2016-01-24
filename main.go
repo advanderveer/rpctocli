@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"go/ast"
+	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
@@ -201,9 +202,26 @@ type Generator struct {
 
 //A Package the generator is building a cli for
 type Package struct {
+	dir      string
 	name     string
 	files    []*File
+	defs     map[*ast.Ident]types.Object
 	typesPkg *types.Package
+}
+
+func (pkg *Package) check(fs *token.FileSet, astFiles []*ast.File) error {
+	pkg.defs = make(map[*ast.Ident]types.Object)
+	config := types.Config{Importer: importer.Default(), FakeImportC: true}
+	info := &types.Info{
+		Defs: pkg.defs,
+	}
+	typesPkg, err := config.Check(pkg.dir, fs, astFiles, info)
+	if err != nil {
+		return fmt.Errorf("Failed to type check package: %v", err)
+	}
+
+	pkg.typesPkg = typesPkg
+	return nil
 }
 
 //A File in the package
@@ -226,6 +244,7 @@ func (g *Generator) Parse(dir string) error {
 		return fmt.Errorf("Failed to read the directory '%s': %v", dir, err)
 	}
 
+	astFiles := []*ast.File{}
 	fset := token.NewFileSet()
 	for _, fi := range fis {
 		if !strings.HasSuffix(fi.Name(), ".go") {
@@ -237,6 +256,7 @@ func (g *Generator) Parse(dir string) error {
 			return fmt.Errorf("Failed to parse file '%s': %v", fi.Name(), err)
 		}
 
+		astFiles = append(astFiles, astFile)
 		g.pkg.files = append(g.pkg.files, &File{
 			pkg:  g.pkg,
 			file: astFile,
@@ -247,7 +267,9 @@ func (g *Generator) Parse(dir string) error {
 		log.Fatalf("%s: no buildable Go files", dir)
 	}
 
+	g.pkg.dir = dir
 	g.pkg.name = g.pkg.files[0].file.Name.Name
 	log.Printf("parsed package '%s' in '%s'!", g.pkg.name, dir)
-	return nil
+
+	return g.pkg.check(fset, astFiles)
 }
